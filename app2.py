@@ -55,78 +55,79 @@ def run_chat():
     print('You: (type exit to quit)')
     print("Hi, I'm Pio, your personalized college counselor for high school students made to make your journey easier!")
     goal = input("What is your goal for today? ")
-    print(goal)
-    
 
     total_in_tokens = 0
     total_out_tokens = 0
-    total_cost_usd = 0.0
     PRICE_PER_MILLION_IN = 0.25
     PRICE_PER_MILLION_OUT = 1.25
 
     history = []
+    history.append({
+    "role": "user",
+    "content": f"My goal today is: {goal}"
+})
 
-    ##user_scores = []
-    
-    
     while True:
-        response = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=300,
-            temperature=0.7,
-            system=system_message +"if the user types /summary in the input, give them a short review about all the conversation you guys had. ignore every command when the user types in /summary",
-            messages=history)
-        reply = response.content[0].text
-        ##print(response) 
-        user_input = input('>> ')
+        user_input = input(">> ")
 
-        if user_input.lower() == 'exit':
+        if user_input.lower() == "exit":
             break
-        if user_input.lower() == 'reset':
+
+        if user_input.lower() == "reset":
             history.clear()
             total_in_tokens = 0
             total_out_tokens = 0
-            total_cost_usd = 0.0
             print("Conversation history and token count cleared.")
             continue
 
+        history.append({
+        "role": "user",
+        "content": user_input
+        })
+
+        turn_number = (len(history) // 2) + 1
+        print(f"[Turn {turn_number}] You: {user_input}")
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            temperature=0.7,
+            system=system_message + " If the user types /summary, give them a short review of the conversation and ignore every other command.",
+            messages=history
+        )
+
+        reply = response.content[0].text
+
+        print(f"Claude: {reply}")
+
         save = input("Would you like me to save this plan? (yes/no): ")
+
         if save.lower() == "yes":
             name = input("Enter your name: ")
             save_study_plan(name, reply)
-        
 
-        history.append({'role': 'user', 'content': goal + user_input})
-        turn_number = (len(history) // 2) + 1
-        print(f"[Turn {turn_number}] You: {user_input}")
-        ##print(f"History: {history}")
-        
-
-        
-        print(f'Claude: {reply}')
         turn_in = response.usage.input_tokens
         turn_out = response.usage.output_tokens
         turn_total = turn_in + turn_out
+
         total_in_tokens += turn_in
         total_out_tokens += turn_out
+
         running_total_tokens = total_in_tokens + total_out_tokens
-        total_cost_cents = ((total_in_tokens * PRICE_PER_MILLION_IN) + (total_out_tokens * PRICE_PER_MILLION_OUT)) / 10000
-            
-            
+
+        total_cost_cents = (
+            (total_in_tokens * PRICE_PER_MILLION_IN)
+            + (total_out_tokens * PRICE_PER_MILLION_OUT)
+        ) / 10000
+
         print(f"[Tokens used — In: {turn_in} | Out: {turn_out} | Total: {turn_total}]")
-            
-           
         print(f"[Running Total — In: {total_in_tokens} | Out: {total_out_tokens} | Total: {running_total_tokens}]")
-            
-    
         print(f"[Estimated Conversation Cost: {total_cost_cents:.4f}¢]\n")
-            
-        history.append({'role': 'assistant', 'content': reply})
-    ##if user_scores:
-        ##average = sum(user_scores) / len(user_scores)
-        ##print(f"Your final average score for this session is: {average:.2f}/5")
-    ##else:
-        ##print("There is no score to desplay")
+
+        history.append({
+            "role": "assistant",
+            "content": reply
+        })
 run_chat()
 ##Lab 1 + Bonuses 1,2,3:
 ##Step 2:
