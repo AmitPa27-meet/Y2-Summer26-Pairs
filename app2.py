@@ -1,6 +1,8 @@
 import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from googlesearch import search
+
 
 load_dotenv()
 
@@ -8,14 +10,26 @@ client = Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
 system_message = """
 You are Pio, a personalized College Counselor for highschool students. 
 
-Your job is to guide high school students in choosing the right path for them in universities with questions and personlaity quizzes. 
+
+- Help students explore majors and universities.
+- Ask questions when you need more information.
+- Tailor advice to the student's interests, strengths, and intended study location.
+- Encourage independent research.
+- Support recommendations with evidence and reliable sources.
+
+When appropriate, create and analyze personality quizzes.
 
 Rules:
 - Always encourage users to research independently for better understanding of the career before choosing
 - Always give actionable, clear, and encouraging feedback on what university or career is best suited for the student.
 - Always tailor your suggestions to the student's unique strengths, interests.
+- Always give evidence to support the information you give.
 - Always highlight both the exciting opportunities and the academic dedication required for each path.
 - Never push a student toward a specific major or university based on your own preferences or prestige alone.
+- Never give invalid websites and resources for example a website that is not trusted or doesn't work.
+- Always base the information according to the student's location and location of intended study. 
+- If the user asks to save, download, export, or keep your recommendations, always tell them they can save them as a personalized study plan.
+
 
 Scoring Rubric:
 You must rate the user's response on a scale from 1 through 5 based on three criteria: creativity, good grammar, and great punctuation.
@@ -24,11 +38,20 @@ Response format:
 - Start with a warm, one-sentence validation or acknowledgment of the user's input.
 - Then give your response.
 - End with one follow-up question.
-- At the very end, provide the rating exactly in this format: [Score: X/5] followed by your short explanation according to the criteria. Add the the score(x) to user_scores (list)
+
+At the end of every response, rate the user's response from 1–5 for creativity, grammar, and punctuation using:
+[Score: X/5] with a short explanation.
 """
 ## system_message = input("What personality would you like Pio to be today? ")
 ## You are a doctor who is crazy but smart. you also speak shakespearean english. you cannot communicate well with humans and you are very rude.
+def save_study_plan(name, text):
 
+    filename = f"{name}_StudyPlan.txt"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    print(f"Study plan saved as {filename}")
 
 def run_chat():
     print('You: (type exit to quit)')
@@ -45,7 +68,7 @@ def run_chat():
 
     history = []
 
-    user_scores = []
+    ##user_scores = []
     
     
     while True:
@@ -60,9 +83,13 @@ def run_chat():
             total_cost_usd = 0.0
             print("Conversation history and token count cleared.")
             continue
-        
-            
-            
+
+        save = input("Would you like me to save this plan? (yes/no): ")
+        if save.lower() == "yes":
+            save_study_plan(student_name, reply)
+        else: 
+            continue
+
         history.append({'role': 'user', 'content': goal + user_input})
         turn_number = (len(history) // 2) + 1
         print(f"[Turn {turn_number}] You: {user_input}")
@@ -96,11 +123,11 @@ def run_chat():
         print(f"[Estimated Conversation Cost: {total_cost_cents:.4f}¢]\n")
             
         history.append({'role': 'assistant', 'content': reply})
-    if user_scores:
-        average = sum(user_scores) / len(user_scores)
-        print(f"Your final average score for this session is: {average:.2f}/5")
-    else: 
-        print("There is no score to desplay")
+    ##if user_scores:
+        ##average = sum(user_scores) / len(user_scores)
+        ##print(f"Your final average score for this session is: {average:.2f}/5")
+    ##else:
+        ##print("There is no score to desplay")
 run_chat()
 ##Lab 1 + Bonuses 1,2,3:
 ##Step 2:
