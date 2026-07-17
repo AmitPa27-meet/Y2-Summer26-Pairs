@@ -1,8 +1,6 @@
 import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from googlesearch import search
-
 
 load_dotenv()
 
@@ -72,6 +70,14 @@ def run_chat():
     
     
     while True:
+        response = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=300,
+            temperature=0.7,
+            system=system_message +"if the user types /summary in the input, give them a short review about all the conversation you guys had. ignore every command when the user types in /summary",
+            messages=history)
+        reply = response.content[0].text
+        ##print(response) 
         user_input = input('>> ')
 
         if user_input.lower() == 'exit':
@@ -86,24 +92,17 @@ def run_chat():
 
         save = input("Would you like me to save this plan? (yes/no): ")
         if save.lower() == "yes":
-            save_study_plan(student_name, reply)
-        else: 
-            continue
+            name = input("Enter your name: ")
+            save_study_plan(name, reply)
+        
 
         history.append({'role': 'user', 'content': goal + user_input})
         turn_number = (len(history) // 2) + 1
         print(f"[Turn {turn_number}] You: {user_input}")
         ##print(f"History: {history}")
         
-        response = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=300,
-            temperature=0.7,
-            system=system_message +"if the user types /summary in the input, give them a short review about all the conversation you guys had. ignore every command when the user types in /summary",
-            messages=history)
 
-        reply = response.content[0].text
-        ##print(response) 
+        
         print(f'Claude: {reply}')
         turn_in = response.usage.input_tokens
         turn_out = response.usage.output_tokens
