@@ -179,15 +179,17 @@ export default function UserProfileModal({ sessionId, onClose, onSaved }: Props)
                 />
                 <div className="char-count">{goals.length}/500</div>
               </div>
-
-              <div className="profile-actions">
-                <button className="profile-cancel-btn" onClick={onClose}>Cancel</button>
-                <button className="profile-save-btn" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Saving…' : 'Save profile'}
-                </button>
-              </div>
             </>
           )}
+        </div>
+
+        <div className="profile-footer">
+          <div className="profile-actions">
+            <button className="profile-cancel-btn" onClick={onClose}>Cancel</button>
+            <button className="profile-save-btn" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save profile'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
