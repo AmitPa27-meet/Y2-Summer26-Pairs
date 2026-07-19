@@ -182,13 +182,13 @@ input, textarea { font-family: inherit; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
   background: var(--surface); border-radius: var(--radius-lg); padding: 0;
-  max-width: 420px; width: 90%; box-shadow: var(--shadow-lg); overflow: hidden;
+  max-width: 420px; width: 90%; max-height: 88vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg); animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .composer-btn.danger { background: var(--surface-alt); color: var(--text-muted); }
 .composer-btn.danger:hover { background: #e07a5f; color: white; }
 .composer-btn.save { background: var(--surface-alt); color: var(--text-muted); }
 .composer-btn.save:hover { background: var(--primary); color: white; }
-  animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 .modal-header {
   position: relative; height: 160px;

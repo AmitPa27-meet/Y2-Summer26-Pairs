@@ -198,6 +198,8 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     for (const f of Array.from(files)) { if (!f.type.startsWith('image/')) continue; urls.push(await fileToDataUrl(f)); }
     setPendingImages((prev) => [...prev, ...urls]);
     if (fileRef.current) fileRef.current.value = '';
+  }
+
   async function handleClear() {
     if (messages.length === 0) return;
     if (!window.confirm('Clear all messages in this chat? This cannot be undone.')) return;
@@ -205,9 +207,6 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     setMessages([]);
     setPendingImages([]);
     setError(null);
-    setLastFailedInput(null);
-  }
-
   }
 
   function removePendingImage(idx: number) {
@@ -288,6 +287,9 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
         </button>
         <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFileChange} style={{ display: 'none' }} />
         <textarea className="composer-input" placeholder="Message Linnea…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKeyDown} rows={1} />
+        <button className="composer-btn danger" onClick={handleClear} disabled={messages.length === 0 || loading} aria-label="Clear chat" title="Clear all messages">
+          <span className="icon">🗑</span>
+        </button>
         <button className="composer-btn" onClick={handleSend} disabled={loading || (!input.trim() && pendingImages.length === 0)} aria-label="Send">
           <span className="icon">➤</span>
         </button>
@@ -297,7 +299,3 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     </div>
   );
 }
-
-        <button className="composer-btn danger" onClick={handleClear} disabled={messages.length === 0 || loading} aria-label="Clear chat" title="Clear all messages">
-          <span className="icon">🗑</span>
-        </button>
