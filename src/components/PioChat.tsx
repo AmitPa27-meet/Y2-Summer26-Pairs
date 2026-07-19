@@ -1,8 +1,107 @@
 import { useEffect, useRef, useState } from 'react';
-import { Message, getSessionId, loadConversation, saveConversationMessage } from '../lib/supabase';
-import { PIO_SYSTEM } from '../lib/prompts';
-import { callPio } from '../lib/api';
+import { createClient } from '@supabase/supabase-js';
 import PioProfileModal from './PioProfileModal';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false } },
+);
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  imageUrl?: string;
+  createdAt: number;
+}
+
+function getSessionId(): string {
+  let sid = localStorage.getItem('teyvat_session_id');
+  if (!sid) {
+    sid = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem('teyvat_session_id', sid);
+  }
+  return sid;
+}
+
+async function loadConversation(sessionId: string, agent: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('id, role, content, image_url, created_at')
+    .eq('session_id', sessionId)
+    .eq('agent', agent)
+    .order('created_at', { ascending: true });
+  if (error || !data) return [];
+  return data.map((r: any) => ({
+    id: r.id, role: r.role, content: r.content,
+    imageUrl: r.image_url ?? undefined,
+    createdAt: new Date(r.created_at).getTime(),
+  }));
+}
+
+async function saveConversationMessage(sessionId: string, agent: string, msg: Message): Promise<void> {
+  const { error } = await supabase.from('conversations').insert({
+    session_id: sessionId, agent, role: msg.role, content: msg.content,
+    image_url: msg.imageUrl ?? null,
+  });
+  if (error) console.warn('saveConversationMessage error', error);
+}
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
+const ANTHROPIC_BASE_URL = import.meta.env.VITE_ANTHROPIC_BASE_URL;
+
+async function callPio(systemPrompt: string, messages: any[]): Promise<string> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/pio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON_KEY}` },
+    body: JSON.stringify({ systemPrompt, messages, apiKey: ANTHROPIC_API_KEY, baseURL: ANTHROPIC_BASE_URL }),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Pio error (${res.status}): ${t}`); }
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.text ?? '';
+}
+
+const PIO_SYSTEM = `You are Pio, a personalized College Counselor for high school students.
+
+Your goal is to:
+- Help students explore majors and universities.
+- Ask questions when you need more information.
+- Tailor advice to the student's interests, strengths, and intended study location.
+- Encourage independent research.
+- Support recommendations with evidence and reliable sources.
+- When appropriate, create and analyze personality quizzes.
+
+Rules:
+- Always encourage users to research independently for better understanding of the career before choosing.
+- Always give actionable, clear, and encouraging feedback on what university or career is best suited for the student.
+- Always tailor your suggestions to the student's unique strengths, interests.
+- Always give evidence to support the information you give.
+- Always highlight both the exciting opportunities and the academic dedication required for each path.
+- Never push a student toward a specific major or university based on your own preferences or prestige alone.
+- Never give invalid websites and resources — only trusted, working resources.
+- Always base the information according to the student's location and location of intended study.
+- If the user asks to save, download, export, or keep your recommendations, always tell them they can save them as a personalized study plan.
+- When web search is available, verify information about universities, majors, and recent developments.
+
+Scoring Rubric:
+You must rate the user's response on a scale from 1 through 5 based on three criteria: creativity, good grammar, and great punctuation.
+
+Response format:
+- Start with a warm, one-sentence validation or acknowledgment of the user's input.
+- Then give your response.
+- End with one follow-up question.
+
+At the end of every response, rate the user's response from 1–5 for creativity, grammar, and punctuation using:
+[Score: X/5] with a short explanation.
+
+Your answer format:
+[Summary]: one sentence repeating what the user asked.
+[Response]: the main answer.
+[Next Step]: one concrete action the user can take.`;
 
 function formatResponse(text: string): string {
   return text.replace(/\[Summary\]:/gi, '\n[Summary]:').replace(/\[Response\]:/gi, '\n[Response]:').replace(/\[Next Step\]:/gi, '\n[Next Step]:').replace(/^\n+/, '').trim();
