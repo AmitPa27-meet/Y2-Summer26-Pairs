@@ -111,7 +111,7 @@ function fileToDataUrl(file: File): Promise<string> {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsDataURL(file); });
 }
 function formatResponse(text: string): string {
-  return text.replace(/\[Summary\]:/gi, '\n[Summary]:').replace(/\[Response\]:/gi, '\n[Response]:').replace(/\[Next Step\]:/gi, '\n[Next Step]:').replace(/^\n+/, '').trim();
+  return text.replace(/\[Summary\]:\s*/gi, '').replace(/\[Response\]:\s*/gi, '').replace(/\[Next Step\]:\s*/gi, '').replace(/^\n+/, '').trim();
 }
 
 interface Props {
@@ -126,6 +126,8 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
   const [mode, setMode] = useState<LinneaMode>('A');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'network' | 'server' | 'unknown'>('unknown');
+  const [lastFailedInput, setLastFailedInput] = useState<{ text: string; images: string[] } | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [memories, setMemories] = useState<{ key: string; value: string }[]>([]);
@@ -162,6 +164,7 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     if (userImages[0]) saveImageRecord(userImages[0], 'user_upload', mode);
 
     setLoading(true);
+    setError(null);
     const apiMessages: any[] = next.map((m) => {
       if (m.imageUrl) {
         return { role: m.role, content: [
@@ -185,20 +188,15 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
       const replyMsg: Message = { id: `a_${Date.now()}`, role: 'assistant', content: formatResponse(text), createdAt: Date.now() };
       setMessages([...next, replyMsg]);
       saveConversationMessage(sessionId, 'linnea', replyMsg);
-    } catch (e: any) { setError(e.message || 'Something went wrong.'); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      setErrorType(/Failed to fetch|NetworkError|network/i.test(msg) ? 'network' : /Linnea error|5\d\d|4\d\d/i.test(msg) ? 'server' : 'unknown');
+      setError(msg);
+      setLastFailedInput({ text: userText, images: userImages });
+    } finally { setLoading(false); }
   }
 
   function onKeyDown(e: React.KeyboardEvent) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }
-
-  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files) return;
-    const urls: string[] = [];
-    for (const f of Array.from(files)) { if (!f.type.startsWith('image/')) continue; urls.push(await fileToDataUrl(f)); }
-    setPendingImages((prev) => [...prev, ...urls]);
-    if (fileRef.current) fileRef.current.value = '';
-  }
 
   async function handleClear() {
     if (messages.length === 0) return;
@@ -207,6 +205,61 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     setMessages([]);
     setPendingImages([]);
     setError(null);
+    setLastFailedInput(null);
+  }
+
+  async function handleRetry() {
+    if (!lastFailedInput) return;
+    setError(null);
+    setLastFailedInput(null);
+    const retryText = lastFailedInput.text;
+    const retryImages = lastFailedInput.images;
+    const userMsg: Message = {
+      id: `u_${Date.now()}`, role: 'user',
+      content: retryText || (retryImages.length ? '(image sent)' : ''),
+      imageUrl: retryImages[0], createdAt: Date.now(),
+    };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    saveConversationMessage(sessionId, 'linnea', userMsg);
+    setLoading(true);
+    const apiMessages: any[] = next.map((m) => {
+      if (m.imageUrl) {
+        return { role: m.role, content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.imageUrl.split(',')[1] } },
+          { type: 'text', text: m.content || 'Please review this image.' },
+        ]};
+      }
+      return { role: m.role, content: m.content };
+    });
+    try {
+      const { text, newMemories } = await callLinnea(LINNEA_SYSTEM + MODE_CONTEXT[mode], apiMessages, memories);
+      for (const m of newMemories) await saveMemory(sessionId, m.key, m.value);
+      if (newMemories.length) {
+        setMemories((prev) => {
+          const map = new Map(prev.map((x) => [x.key, x.value]));
+          for (const m of newMemories) map.set(m.key, m.value);
+          return Array.from(map, ([k, v]) => ({ key: k, value: v }));
+        });
+      }
+      const replyMsg: Message = { id: `a_${Date.now()}`, role: 'assistant', content: formatResponse(text), createdAt: Date.now() };
+      setMessages([...next, replyMsg]);
+      saveConversationMessage(sessionId, 'linnea', replyMsg);
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      setErrorType(/Failed to fetch|NetworkError|network/i.test(msg) ? 'network' : /Linnea error|5\d\d|4\d\d/i.test(msg) ? 'server' : 'unknown');
+      setError(msg);
+      setLastFailedInput({ text: retryText, images: retryImages });
+    } finally { setLoading(false); }
+  }
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+    const urls: string[] = [];
+    for (const f of Array.from(files)) { if (!f.type.startsWith('image/')) continue; urls.push(await fileToDataUrl(f)); }
+    setPendingImages((prev) => [...prev, ...urls]);
+    if (fileRef.current) fileRef.current.value = '';
   }
 
   function removePendingImage(idx: number) {
@@ -228,7 +281,22 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
         </div>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <div className="error-text">
+              <strong>{errorType === 'network' ? 'Connection problem' : errorType === 'server' ? 'Server error' : 'Something went wrong'}</strong>
+              <span className="error-detail">{errorType === 'network' ? 'Could not reach the server. Check your internet connection and try again.' : errorType === 'server' ? 'The AI service returned an error. Please try again in a moment.' : error}</span>
+            </div>
+            <div className="error-actions">
+              {lastFailedInput && <button className="error-btn primary" onClick={handleRetry}>Retry</button>}
+              <button className="error-btn" onClick={() => window.location.reload()}>Reload page</button>
+              <button className="error-btn" onClick={() => { setError(null); setLastFailedInput(null); }}>Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="messages" ref={scrollRef}>
         {messages.length === 0 && !loading && (
@@ -256,7 +324,10 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
         {loading && (
           <div className="msg-row assistant">
             <img src="/linneaaichat.jpeg" className="msg-avatar" alt="Linnea" />
-            <div className="msg-bubble"><div className="typing"><span></span><span></span><span></span></div></div>
+            <div className="msg-bubble">
+              <div className="typing"><span></span><span></span><span></span></div>
+              <div className="loading-text">Linnea is thinking…</div>
+            </div>
           </div>
         )}
       </div>

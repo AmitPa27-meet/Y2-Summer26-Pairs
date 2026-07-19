@@ -4,6 +4,7 @@ import LinneaChat from './components/LinneaChat';
 import PioChat from './components/PioChat';
 import Welcome from './components/Welcome';
 import HelpPage from './components/HelpPage';
+import UserProfileModal, { type UserProfile } from './components/UserProfileModal';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -73,6 +74,8 @@ export default function App() {
   const [userName, setUserName] = useState('');
   const [themeId, setThemeId] = useState('amber');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const sessionId = getSessionId();
 
   useEffect(() => {
@@ -90,6 +93,14 @@ export default function App() {
     setUserName(n);
     localStorage.setItem('teyvat_user_name', n);
     if (n.trim()) saveMemory(sessionId, 'name', n.trim());
+  }
+
+  function onProfileSaved(p: UserProfile) {
+    setProfile(p);
+    const name = p.display_name ?? '';
+    setUserName(name);
+    localStorage.setItem('teyvat_user_name', name);
+    if (name.trim()) saveMemory(sessionId, 'name', name.trim());
   }
 
   function chooseAgent(agent: Agent) { setPreviousAgent(agent); setView(agent); }
@@ -113,15 +124,22 @@ export default function App() {
       <div className="sidebar">
         <div className="sidebar-logo">T</div>
         <button className={`sidebar-btn ${view === 'linnea' ? 'active' : ''}`} onClick={() => chooseAgent('linnea')} title="Linnea">
-          <span className="icon">🎨</span>
+          <img src="/linneaaichat.jpeg" alt="Linnea" className="sidebar-avatar" />
         </button>
         <button className={`sidebar-btn ${view === 'pio' ? 'active' : ''}`} onClick={() => chooseAgent('pio')} title="Pio">
-          <span className="icon">🎓</span>
+          <img src="/WhatsApp_Image_2026-07-17_at_18.09.58.jpeg" alt="Pio" className="sidebar-avatar" />
         </button>
         <button className={`sidebar-btn ${view === 'welcome' ? 'active' : ''}`} onClick={() => setView('welcome')} title="Home">
           <span className="icon">⌂</span>
         </button>
         <div className="sidebar-spacer" />
+        <button className="sidebar-btn" onClick={() => setShowProfile(true)} title="Your profile">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt="You" className="sidebar-avatar" />
+          ) : (
+            <span className="icon">👤</span>
+          )}
+        </button>
         <button className="sidebar-btn" onClick={() => setShowColorPicker((s) => !s)} title="Theme color">
           <span className="icon">🎨</span>
         </button>
@@ -147,6 +165,13 @@ export default function App() {
       {view === 'linnea' && <LinneaChat userName={userName} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
       {view === 'pio' && <PioChat userName={userName} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
       {view === 'help' && <HelpPage onBack={backFromHelp} />}
+      {showProfile && (
+        <UserProfileModal
+          sessionId={sessionId}
+          onClose={() => setShowProfile(false)}
+          onSaved={onProfileSaved}
+        />
+      )}
     </div>
   );
 }
