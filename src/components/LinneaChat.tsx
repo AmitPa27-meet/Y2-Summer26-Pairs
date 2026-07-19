@@ -71,6 +71,11 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 const ANTHROPIC_BASE_URL = import.meta.env.VITE_ANTHROPIC_BASE_URL;
 
+async function clearConversationMessages(sessionId: string, agent: string): Promise<void> {
+  const { error } = await supabase.from('conversations').delete().eq('session_id', sessionId).eq('agent', agent);
+  if (error) console.warn('clearConversationMessages error', error);
+}
+
 async function callLinnea(
   systemPrompt: string,
   messages: any[],
@@ -193,6 +198,16 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     for (const f of Array.from(files)) { if (!f.type.startsWith('image/')) continue; urls.push(await fileToDataUrl(f)); }
     setPendingImages((prev) => [...prev, ...urls]);
     if (fileRef.current) fileRef.current.value = '';
+  async function handleClear() {
+    if (messages.length === 0) return;
+    if (!window.confirm('Clear all messages in this chat? This cannot be undone.')) return;
+    await clearConversationMessages(sessionId, 'linnea');
+    setMessages([]);
+    setPendingImages([]);
+    setError(null);
+    setLastFailedInput(null);
+  }
+
   }
 
   function removePendingImage(idx: number) {
@@ -282,3 +297,7 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
     </div>
   );
 }
+
+        <button className="composer-btn danger" onClick={handleClear} disabled={messages.length === 0 || loading} aria-label="Clear chat" title="Clear all messages">
+          <span className="icon">🗑</span>
+        </button>
