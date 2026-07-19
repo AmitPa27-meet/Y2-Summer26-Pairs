@@ -27,7 +27,6 @@ async function loadProfile(sessionId: string): Promise<UserProfile> {
     avatar_url: data?.avatar_url ?? null,
   };
 }
-export { loadProfile };
 
 async function saveProfile(sessionId: string, profile: UserProfile): Promise<void> {
   const { error } = await supabase.from('user_profiles').upsert({
@@ -52,13 +51,12 @@ function fileToDataUrl(file: File): Promise<string> {
 
 interface Props {
   sessionId: string;
-  initialName?: string;
   onClose: () => void;
   onSaved: (profile: UserProfile) => void;
 }
 
-export default function UserProfileModal({ sessionId, initialName, onClose, onSaved }: Props) {
-  const [displayName, setDisplayName] = useState(initialName ?? '');
+export default function UserProfileModal({ sessionId, onClose, onSaved }: Props) {
+  const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [goals, setGoals] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -69,13 +67,13 @@ export default function UserProfileModal({ sessionId, initialName, onClose, onSa
   useEffect(() => {
     (async () => {
       const p = await loadProfile(sessionId);
-      setDisplayName(p.display_name ?? initialName ?? '');
+      setDisplayName(p.display_name ?? '');
       setBio(p.bio ?? '');
       setGoals(p.goals ?? '');
       setAvatarUrl(p.avatar_url);
       setLoading(false);
     })();
-  }, [sessionId, initialName]);
+  }, [sessionId]);
 
   async function handleSave() {
     setSaving(true);
