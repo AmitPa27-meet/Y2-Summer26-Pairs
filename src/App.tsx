@@ -4,7 +4,7 @@ import LinneaChat from './components/LinneaChat';
 import PioChat from './components/PioChat';
 import Welcome from './components/Welcome';
 import HelpPage from './components/HelpPage';
-import UserProfileModal, { type UserProfile } from './components/UserProfileModal';
+import UserProfileModal, { type UserProfile, loadProfile } from './components/UserProfileModal';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -162,12 +162,13 @@ export default function App() {
       </div>
 
       {view === 'welcome' && <Welcome onChoose={chooseAgent} />}
-      {view === 'linnea' && <LinneaChat userName={userName} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
-      {view === 'pio' && <PioChat userName={userName} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
+      {view === 'linnea' && <LinneaChat userName={userName} userAvatarUrl={profile?.avatar_url ?? null} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
+      {view === 'pio' && <PioChat userName={userName} userAvatarUrl={profile?.avatar_url ?? null} onUserNameChange={onUserNameChange} onOpenHelp={openHelp} />}
       {view === 'help' && <HelpPage onBack={backFromHelp} />}
       {showProfile && (
         <UserProfileModal
           sessionId={sessionId}
+          initialName={userName}
           onClose={() => setShowProfile(false)}
           onSaved={onProfileSaved}
         />

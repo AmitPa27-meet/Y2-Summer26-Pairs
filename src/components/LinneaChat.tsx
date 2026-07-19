@@ -116,11 +116,12 @@ function formatResponse(text: string): string {
 
 interface Props {
   userName: string;
+  userAvatarUrl: string | null;
   onUserNameChange: (n: string) => void;
   onOpenHelp: () => void;
 }
 
-export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: Props) {
+export default function LinneaChat({ userName, userAvatarUrl, onUserNameChange, onOpenHelp }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<LinneaMode>('A');
@@ -276,7 +277,11 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
         </div>
         <div className="header-actions">
           <input className="user-name-input" placeholder="Your name" value={userName} onChange={(e) => onUserNameChange(e.target.value)} />
-          <div className="user-avatar-header">{userName ? userName[0].toUpperCase() : 'U'}</div>
+          {userAvatarUrl ? (
+            <img src={userAvatarUrl} alt="You" className="user-avatar-header" />
+          ) : (
+            <div className="user-avatar-header">{userName ? userName[0].toUpperCase() : 'U'}</div>
+          )}
           <button className="header-btn" onClick={onOpenHelp} title="Help">?</button>
         </div>
       </div>
@@ -310,6 +315,8 @@ export default function LinneaChat({ userName, onUserNameChange, onOpenHelp }: P
           <div key={m.id} className={`msg-row ${m.role}`}>
             {m.role === 'assistant' ? (
               <img src="/linneaaichat.jpeg" className="msg-avatar" alt="Linnea" />
+            ) : userAvatarUrl ? (
+              <img src={userAvatarUrl} alt="You" className="msg-avatar" />
             ) : (
               <div className="msg-avatar placeholder" style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary))' }}>
                 {userName ? userName[0].toUpperCase() : 'U'}
