@@ -148,136 +148,168 @@ def call_linnea():
 
 def call_pio():
     import os
-    from anthropic import Anthropic
-    from dotenv import load_dotenv
+from anthropic import Anthropic
+from dotenv import load_dotenv
+from ddgs import DDGS as ddgs
 
-    load_dotenv()
+load_dotenv()
 
-    client = Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-    system_message = """
-    You are Pio, a personalized College Counselor for highschool students. 
+client = Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+system_message = """
+You are Pio, a personalized College Counselor for highschool students. 
 
-    Your goal is to:
-    - Help students explore majors and universities.
-    - Ask questions when you need more information.
-    - Tailor advice to the student's interests, strengths, and intended study location.
-    - Encourage independent research.
-    - Support recommendations with evidence and reliable sources.
+Your goal is to:
+- Help students explore majors and universities.
+- Ask questions when you need more information.
+- Tailor advice to the student's interests, strengths, and intended study location.
+- Encourage independent research.
+- Support recommendations with evidence and reliable sources.
 
-    When appropriate, create and analyze personality quizzes.
+When appropriate, create and analyze personality quizzes.
 
-    Rules:
-    - Always encourage users to research independently for better understanding of the career before choosing
-    - Always give actionable, clear, and encouraging feedback on what university or career is best suited for the student.
-    - Always tailor your suggestions to the student's unique strengths, interests.
-    - Always give evidence to support the information you give.
-    - Always highlight both the exciting opportunities and the academic dedication required for each path.
-    - Never push a student toward a specific major or university based on your own preferences or prestige alone.
-    - Never give invalid websites and resources for example a website that is not trusted or doesn't work.
-    - Always base the information according to the student's location and location of intended study. 
-    - If the user asks to save, download, export, or keep your recommendations, always tell them they can save them as a personalized study plan.
+Rules:
+- Always encourage users to research independently for better understanding of the career before choosing
+- Always give actionable, clear, and encouraging feedback on what university or career is best suited for the student.
+- Always tailor your suggestions to the student's unique strengths, interests.
+- Always give evidence to support the information you give.
+- Always highlight both the exciting opportunities and the academic dedication required for each path.
+- Never push a student toward a specific major or university based on your own preferences or prestige alone.
+- Never give invalid websites and resources for example a website that is not trusted or doesn't work.
+- Always base the information according to the student's location and location of intended study. 
+- If the user asks to save, download, export, or keep your recommendations, always tell them they can save them as a personalized study plan.
 
 
-    Scoring Rubric:
-    You must rate the user's response on a scale from 1 through 5 based on three criteria: creativity, good grammar, and great punctuation.
+Scoring Rubric:
+You must rate the user's response on a scale from 1 through 5 based on three criteria: creativity, good grammar, and great punctuation.
 
-    Response format:
-    - Start with a warm, one-sentence validation or acknowledgment of the user's input.
-    - Then give your response.
-    - End with one follow-up question.
+Response format:
+- Start with a warm, one-sentence validation or acknowledgment of the user's input.
+- Then give your response.
+- End with one follow-up question.
 
-    At the end of every response, rate the user's response from 1–5 for creativity, grammar, and punctuation using:
-    [Score: X/5] with a short explanation.
-    """
-    ## system_message = input("What personality would you like Pio to be today? ")
-    ## You are a doctor who is crazy but smart. you also speak shakespearean english. you cannot communicate well with humans and you are very rude.
-    def save_study_plan(name, text):
+At the end of every response, rate the user's response from 1–5 for creativity, grammar, and punctuation using:
+[Score: X/5] with a short explanation.
+"""
+## system_message = input("What personality would you like Pio to be today? ")
+## You are a doctor who is crazy but smart. you also speak shakespearean english. you cannot communicate well with humans and you are very rude.
 
-        filename = f"{name}_StudyPlan.txt"
+def search_web(query, max_results=5):
+    results = []
 
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(text)
+    with ddgs() as search:
+        for r in search.text(query, max_results=max_results):
+            results.append({
+                "title": r["title"],
+                "url": r["href"]
+            })
 
-        print(f"Study plan saved as {filename}")
+    return results
+   
 
-    def run_chat():
-        print('You: (type exit to quit)')
-        print("Hi, I'm Pio, your personalized college counselor for high school students made to make your journey easier!")
-        goal = input("What is your goal for today? ")
 
-        total_in_tokens = 0
-        total_out_tokens = 0
-        PRICE_PER_MILLION_IN = 0.25
-        PRICE_PER_MILLION_OUT = 1.25
+def save_study_plan(name, text):
 
-        history = []
+    filename = f"{name}_StudyPlan.txt"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    print(f"Study plan saved as {filename}")
+
+def run_chat():
+    print('You: (type exit to quit)')
+    print("Hi, I'm Pio, your personalized college counselor for high school students made to make your journey easier!")
+    goal = input("What is your goal for today? ")
+
+    total_in_tokens = 0
+    total_out_tokens = 0
+    PRICE_PER_MILLION_IN = 0.25
+    PRICE_PER_MILLION_OUT = 1.25
+
+    history = []
+    history.append({
+    "role": "user",
+    "content": f"My goal today is: {goal}"
+})
+
+    while True:
+        user_input = input(">> ")
+
+        if user_input.lower() == "exit":
+            break
+
+        if user_input.lower() == "reset":
+            history.clear()
+            total_in_tokens = 0
+            total_out_tokens = 0
+            print("Conversation history and token count cleared.")
+            continue
+
         history.append({
         "role": "user",
-        "content": f"My goal today is: {goal}"
-    })
+        "content": user_input
+        })
 
-        while True:
-            user_input = input(">> ")
+        turn_number = (len(history) // 2) + 1
+        print(f"[Turn {turn_number}] You: {user_input}")
 
-            if user_input.lower() == "exit":
-                break
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            temperature=0.7,
+            system=system_message + " If the user types /summary, give them a short review of the conversation and ignore every other command.",
+            messages=history
+        )
 
-            if user_input.lower() == "reset":
-                history.clear()
-                total_in_tokens = 0
-                total_out_tokens = 0
-                print("Conversation history and token count cleared.")
-                continue
+        reply = response.content[0].text
 
-            history.append({
-            "role": "user",
-            "content": user_input
-            })
+        print(f"Claude: {reply}")
+        choice_link = input("Would you like some helpful website links? (yes/no): ")
 
-            turn_number = (len(history) // 2) + 1
-            print(f"[Turn {turn_number}] You: {user_input}")
+        if choice_link.lower() == "yes":
+            query = input("What topic would you like to search for? ")
 
-            response = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=300,
-                temperature=0.7,
-                system=system_message + " If the user types /summary, give them a short review of the conversation and ignore every other command.",
-                messages=history
-            )
+            results = search_web(query, max_results=5)
 
-            reply = response.content[0].text
+            if results:
+                print("\nUseful websites:\n")
+                for i, result in enumerate(results, 1):
+                    print(f"{i}. {result['title']}")
+                    print(result["url"])
+                    print()
+            else:
+                print("No results found.")
 
-            print(f"Claude: {reply}")
+        save = input("Would you like me to save this plan? (yes/no): ")
 
-            save = input("Would you like me to save this plan? (yes/no): ")
+        if save.lower() == "yes":
+            name = input("Enter your name: ")
+            save_study_plan(name, reply)
 
-            if save.lower() == "yes":
-                name = input("Enter your name: ")
-                save_study_plan(name, reply)
+        turn_in = response.usage.input_tokens
+        turn_out = response.usage.output_tokens
+        turn_total = turn_in + turn_out
 
-            turn_in = response.usage.input_tokens
-            turn_out = response.usage.output_tokens
-            turn_total = turn_in + turn_out
+        total_in_tokens += turn_in
+        total_out_tokens += turn_out
 
-            total_in_tokens += turn_in
-            total_out_tokens += turn_out
+        running_total_tokens = total_in_tokens + total_out_tokens
 
-            running_total_tokens = total_in_tokens + total_out_tokens
+        total_cost_cents = (
+            (total_in_tokens * PRICE_PER_MILLION_IN)
+            + (total_out_tokens * PRICE_PER_MILLION_OUT)
+        ) / 10000
 
-            total_cost_cents = (
-                (total_in_tokens * PRICE_PER_MILLION_IN)
-                + (total_out_tokens * PRICE_PER_MILLION_OUT)
-            ) / 10000
+        print(f"[Tokens used — In: {turn_in} | Out: {turn_out} | Total: {turn_total}]")
+        print(f"[Running Total — In: {total_in_tokens} | Out: {total_out_tokens} | Total: {running_total_tokens}]")
+        print(f"[Estimated Conversation Cost: {total_cost_cents:.4f}¢]\n")
 
-            print(f"[Tokens used — In: {turn_in} | Out: {turn_out} | Total: {turn_total}]")
-            print(f"[Running Total — In: {total_in_tokens} | Out: {total_out_tokens} | Total: {running_total_tokens}]")
-            print(f"[Estimated Conversation Cost: {total_cost_cents:.4f}¢]\n")
-
-            history.append({
-                "role": "assistant",
-                "content": reply
-            })
-    run_chat()
+        history.append({
+            "role": "assistant",
+            "content": reply
+        })
+           
+run_chat()
 
 while True:
     print("Welcome to the AI Companion Program!")

@@ -1,6 +1,7 @@
 import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from ddgs import DDGS as ddgs
 
 load_dotenv()
 
@@ -42,6 +43,21 @@ At the end of every response, rate the user's response from 1–5 for creativity
 """
 ## system_message = input("What personality would you like Pio to be today? ")
 ## You are a doctor who is crazy but smart. you also speak shakespearean english. you cannot communicate well with humans and you are very rude.
+
+def search_web(query, max_results=5):
+    results = []
+
+    with ddgs() as search:
+        for r in search.text(query, max_results=max_results):
+            results.append({
+                "title": r["title"],
+                "url": r["href"]
+            })
+
+    return results
+   
+
+
 def save_study_plan(name, text):
 
     filename = f"{name}_StudyPlan.txt"
@@ -99,6 +115,21 @@ def run_chat():
         reply = response.content[0].text
 
         print(f"Claude: {reply}")
+        choice_link = input("Would you like some helpful website links? (yes/no): ")
+
+        if choice_link.lower() == "yes":
+            query = input("What topic would you like to search for? ")
+
+            results = search_web(query, max_results=5)
+
+            if results:
+                print("\nUseful websites:\n")
+                for i, result in enumerate(results, 1):
+                    print(f"{i}. {result['title']}")
+                    print(result["url"])
+                    print()
+            else:
+                print("No results found.")
 
         save = input("Would you like me to save this plan? (yes/no): ")
 
@@ -128,6 +159,7 @@ def run_chat():
             "role": "assistant",
             "content": reply
         })
+           
 run_chat()
 ##Lab 1 + Bonuses 1,2,3:
 ##Step 2:
