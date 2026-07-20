@@ -1,4 +1,4 @@
-history  = []
+history = []
 def call_linnea():
     from PIL import Image
     import os
@@ -61,13 +61,14 @@ def call_linnea():
         system_message= "You are Linnea, an intelligent AI companion and personal instructor inspired by the Adventurers' Guild of Teyvat. You travel with a small companion named Lumi and possess a Geo Vision. Your personality is warm, patient, curious, creative, respectful, and encouraging. You should feel like a genuine mentor and companion, not just a chatbot. Prioritize accurate, useful, and honest guidance over empty encouragement. Never give fake praise or exaggerated compliments. Explain what works, what doesn't, why, and how the user can improve. Adapt your teaching to the user's skill level.You have three modes. Mode A: Art Instructor (default), Mode B: Computer Science Instructor, and Mode C: Literature and Writing Instructor.In Mode A, you are a professional artist, illustrator, art teacher, and art historian. You are knowledgeable about drawing, painting, digital and traditional art, anatomy, gesture, perspective, composition, lighting, values, rendering, color theory, character and environment design, concept art, visual storytelling, symbolism, art philosophy, art history, famous artists, and artistic movements. When critiquing artwork, honestly analyze anatomy, proportions, perspective, gesture, construction, composition, lighting, values, color harmony, focal points, storytelling, readability, visual hierarchy, and design choices. Identify strengths and weaknesses, explain the reasons behind issues, suggest concrete improvements, and recommend focused practice exercises. Discuss artists, artworks, movements, symbolism, interpretation, and artistic philosophy when relevant.In Mode B, you are a professional computer science teacher and software engineer. Teach programming, algorithms, data structures, debugging, software engineering, AI, cybersecurity, databases, networking, operating systems, mathematics, and system design. Explain concepts clearly, teach reasoning, discuss tradeoffs, and provide exercises when useful. Occasionally mention Lumi, Kirara, Furina, or Sandrone naturally.In Mode C, you are a professional literature and creative writing instructor. Help with literary analysis, grammar, storytelling, editing, character development, dialogue, themes, symbolism, essays, scripts, poetry, and worldbuilding. Provide thoughtful feedback with clear explanations and practical improvements. Occasionally mention Lumi, Kirara, Furina, or Sandrone naturally.You can also create study guides, summaries, revision notes, flashcards, worksheets, comparison tables, programming templates, and structured learning materials. If memory features are available, remember only useful learning preferences such as the user's name, goals, skill level, favorite artists, authors, programming languages, projects, and learning preferences. Always remain immersive while prioritizing honesty and accuracy."
 
         ##system message works! it follows the instructions and still works when role is changed!
+      
         while True:
             user_input = input(f">>")
 
             if user_input.lower() == 'exit':
                 break
             if user_input.lower() == 'clear':
-                history.clear()
+                history = []
                 print('History cleared.')
                 continue
             if user_input.lower() == '/link':
@@ -127,7 +128,7 @@ def call_linnea():
                 continue
 
             history.append({'role': 'user', 'content': user_input})
-            ##print('History:', history)
+            print('History:', history)
             response = client.messages.create(
                 model='claude-haiku-4-5-20251001',
                 max_tokens=300,
@@ -150,6 +151,7 @@ def call_pio():
     import os
     from anthropic import Anthropic
     from dotenv import load_dotenv
+    from ddgs import DDGS as ddgs
 
     load_dotenv()
 
@@ -191,6 +193,21 @@ def call_pio():
     """
     ## system_message = input("What personality would you like Pio to be today? ")
     ## You are a doctor who is crazy but smart. you also speak shakespearean english. you cannot communicate well with humans and you are very rude.
+
+    def search_web(query, max_results=5):
+        results = []
+
+        with ddgs() as search:
+            for r in search.text(query, max_results=max_results):
+                results.append({
+                    "title": r["title"],
+                    "url": r["href"]
+                })
+
+        return results
+    
+
+
     def save_study_plan(name, text):
 
         filename = f"{name}_StudyPlan.txt"
@@ -248,6 +265,21 @@ def call_pio():
             reply = response.content[0].text
 
             print(f"Claude: {reply}")
+            choice_link = input("Would you like some helpful website links? (yes/no): ")
+
+            if choice_link.lower() == "yes":
+                query = input("What topic would you like to search for? ")
+
+                results = search_web(query, max_results=5)
+
+                if results:
+                    print("\nUseful websites:\n")
+                    for i, result in enumerate(results, 1):
+                        print(f"{i}. {result['title']}")
+                        print(result["url"])
+                        print()
+                else:
+                    print("No results found.")
 
             save = input("Would you like me to save this plan? (yes/no): ")
 
@@ -277,6 +309,7 @@ def call_pio():
                 "role": "assistant",
                 "content": reply
             })
+            
     run_chat()
 
 while True:
@@ -289,3 +322,4 @@ while True:
         call_linnea()
     if agent.lower() == "pio":
         call_pio()
+
