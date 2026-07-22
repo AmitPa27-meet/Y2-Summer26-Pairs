@@ -11,7 +11,12 @@ def call_linnea(message):
     global linnea_history
 
     load_dotenv()
-    client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    try:
+        client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    except Exception as e:
+        x = (f"API call failed due to {e}.")
+        return x
+
 
     system_message = "You are Linnea, an intelligent AI companion and personal instructor inspired by the Adventurers' Guild of Teyvat. You travel with a small companion named Lumi and possess a Geo Vision. Your personality is warm, patient, curious, creative, respectful, and encouraging. You should feel like a genuine mentor and companion, not just a chatbot. Prioritize accurate, useful, and honest guidance over empty encouragement. Never give fake praise or exaggerated compliments. Explain what works, what doesn't, why, and how the user can improve. Adapt your teaching to the user's skill level.You have three modes. Mode A: Art Instructor (default), Mode B: Computer Science Instructor, and Mode C: Literature and Writing Instructor.In Mode A, you are a professional artist, illustrator, art teacher, and art historian. You are knowledgeable about drawing, painting, digital and traditional art, anatomy, gesture, perspective, composition, lighting, values, rendering, color theory, character and environment design, concept art, visual storytelling, symbolism, art philosophy, art history, famous artists, and artistic movements. When critiquing artwork, honestly analyze anatomy, proportions, perspective, gesture, construction, composition, lighting, values, color harmony, focal points, storytelling, readability, visual hierarchy, and design choices. Identify strengths and weaknesses, explain the reasons behind issues, suggest concrete improvements, and recommend focused practice exercises. Discuss artists, artworks, movements, symbolism, interpretation, and artistic philosophy when relevant.In Mode B, you are a professional computer science teacher and software engineer. Teach programming, algorithms, data structures, debugging, software engineering, AI, cybersecurity, databases, networking, operating systems, mathematics, and system design. Explain concepts clearly, teach reasoning, discuss tradeoffs, and provide exercises when useful. Occasionally mention Lumi, Kirara, Furina, or Sandrone naturally.In Mode C, you are a professional literature and creative writing instructor. Help with literary analysis, grammar, storytelling, editing, character development, dialogue, themes, symbolism, essays, scripts, poetry, and worldbuilding. Provide thoughtful feedback with clear explanations and practical improvements. Occasionally mention Lumi, Kirara, Furina, or Sandrone naturally.You can also create study guides, summaries, revision notes, flashcards, worksheets, comparison tables, programming templates, and structured learning materials. If memory features are available, remember only useful learning preferences such as the user's name, goals, skill level, favorite artists, authors, programming languages, projects, and learning preferences. Always remain immersive while prioritizing honesty and accuracy."
 
@@ -53,15 +58,18 @@ def call_linnea(message):
                 ],
             }
         )
+        try:
 
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=300,
-            temperature=1.0,
-            system=system_message
-            + " When you receive an image from the user, give them an honest review with coloring, shading, anatomy, and more. Be gentle with harsh feedback, but give constructive criticism.",
-            messages=linnea_history,
-        )
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=300,
+                temperature=1.0,
+                system=system_message
+                + " When you receive an image from the user, give them an honest review with coloring, shading, anatomy, and more. Be gentle with harsh feedback, but give constructive criticism.",
+                messages=linnea_history,
+            )
+        except Exception as e:
+            return f"error happened due to {e}"
 
         reply = response.content[0].text
 
@@ -80,15 +88,16 @@ def call_linnea(message):
             "content": message,
         }
     )
-
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
-        temperature=1.0,
-        system=system_message,
-        messages=linnea_history,
-    )
-
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            temperature=1.0,
+            system=system_message,
+            messages=linnea_history,
+        )
+    except Exception as e:
+        return f"error happened due to {e}"
     reply = response.content[0].text
 
     linnea_history.append(
@@ -180,15 +189,16 @@ def call_pio(message):
         "content": message
     })
 
-
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
-        temperature=0.7,
-        system=system_message + " If the user types /summary, give them a short review of the conversation and ignore every other command.",
-        messages=pio_history
-    )
-
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            temperature=0.7,
+            system=system_message + " If the user types /summary, give them a short review of the conversation and ignore every other command.",
+            messages=pio_history
+        )
+    except Exception as e:
+        return f"error happened due to {e}"
 
     reply = response.content[0].text
 
@@ -248,7 +258,7 @@ while True:
                 break
             if user_input.startswith("/askpio"):
                 actual_message = user_input.replace("/askpio", "").strip()
-                linnea_output = call_linnea(actual_message)
+                linnea_output = call_linnea("you are redircted by another agent, Linnea. make sure you answer the following message as if the user sent it to you. it will ask you about Art, Literature or computer science. you are allowed to answer the agents question(which was  redirected by the ther agent) as youd  like."+actual_message)
                 pio_input = call_pio(linnea_output)
                 print(pio_input)
                 continue
@@ -262,7 +272,7 @@ while True:
                 break
             if user_input.startswith("/asklinnea"):
                 actual_message = user_input.replace("/asklinnea", "").strip()
-                pio_output = call_pio(actual_message)
+                pio_output = call_pio("you are redircted by another agent, Pio. make sure you answer the following message as if the user sent it to you. it will ask you about college stuff. you are allowed to answer the agents question(which was  redirected by the ther agent) as youd  like."+actual_message)
                 linnea_input = call_linnea(pio_output)
                 print(linnea_input)
                 continue
