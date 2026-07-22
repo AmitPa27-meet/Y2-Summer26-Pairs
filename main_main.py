@@ -22,7 +22,8 @@ def call_linnea(message):
 
     if message.lower() == "/picture":
         image_path = input("Please provide the path to the image file(JPEG only!): ").strip()
-
+        if not image_path.lower().endswith((".jpg", ".jpeg")):
+            return "Please send JPEG files only!"
         if not os.path.isfile(image_path):
             return "The provided path does not exist or is not a file."
 
